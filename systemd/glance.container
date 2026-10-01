@@ -1,0 +1,17 @@
+[Unit]
+Description=Glance dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+Image=docker.io/glanceapp/glance:latest
+ContainerName=glance
+PublishPort=8002:8080
+Volume=/etc/thepitbox/glance/config:/app/config
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
