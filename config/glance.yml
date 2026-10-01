@@ -46,6 +46,13 @@ pages:
                     title: TechCrunch
                   - url: https://arstechnica.com/feed
                     title: Ars Technica
+              - type: rss
+                title: World News
+                feeds:
+                  - url: https://news.google.com/rss/search?q=Ap%20news&amp;hl=en-US&amp;gl=US&amp;ceid=US%3Aen
+                    title: AP News
+                  - url: https://news.google.com/rss/search?q=site%3Areuters.com&amp;hl=en-US&amp;gl=US&amp;ceid=US%3Aen
+                    title: Reuters
 
 
           - type: videos
