@@ -4,17 +4,15 @@ Wants=network-online.target
 After=network-online.target
 
 [Container]
-# Built locally from this repo, the upstream image doesn't include our changes:
-#   sudo podman build -t localhost/glance:latest .
-Image=localhost/glance:latest
+# Built by .github/workflows/container-image.yaml on every push to main
+Image=ghcr.io/thepitbox/glance-rss:latest
+# Pull new builds automatically, requires: sudo systemctl enable --now podman-auto-update.timer
+AutoUpdate=registry
 ContainerName=glance
 PublishPort=8002:8080
 # Must stay writable, the feeds editor (/feeds) saves changes to glance.yml in here
 Volume=/etc/thepitbox/glance/config:/app/config
 Environment=TZ=Europe/Berlin
-HealthCmd=wget -q --spider http://localhost:8080/api/healthz
-HealthInterval=1m
-HealthStartPeriod=30s
 
 [Service]
 Restart=always

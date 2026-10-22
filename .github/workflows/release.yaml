@@ -10,6 +10,8 @@ on:
 
 jobs:
   release:
+    # publishes to the upstream project's Docker Hub, only works in the original repository
+    if: github.repository == 'glanceapp/glance'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the target Git reference
