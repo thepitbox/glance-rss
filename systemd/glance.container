@@ -13,12 +13,6 @@ PublishPort=8002:8080
 # Must stay writable, the feeds editor (/feeds) saves changes to glance.yml in here
 Volume=/etc/thepitbox/glance/config:/app/config
 Environment=TZ=Europe/Berlin
-# Resource limits, measured peak usage is ~19 MiB of RAM and well under 0.1 CPU (startup fetch,
-# 30 parallel page loads and a config reload). Below 24 MiB it works but slows down from GC pressure.
-# Swap is disabled for the container (memory-swap == memory) and GOMEMLIMIT makes Go's GC
-# work harder before reaching the hard limit instead of getting OOM killed.
-PodmanArgs=--memory=32m --memory-swap=32m --cpus=0.25
-Environment=GOMEMLIMIT=24MiB
 
 [Service]
 Restart=always
