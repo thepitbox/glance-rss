@@ -49,8 +49,10 @@ type config struct {
 		themeProperties `yaml:",inline"`
 		CustomCSSFile   string `yaml:"custom-css-file"`
 
-		DisablePicker bool                                     `yaml:"disable-picker"`
-		Presets       orderedYAMLMap[string, *themeProperties] `yaml:"presets"`
+		DisablePicker bool `yaml:"disable-picker"`
+		// don't offer the built-in dark theme in the picker when a custom default theme is set
+		HideDefaultDark bool                                     `yaml:"hide-default-dark"`
+		Presets         orderedYAMLMap[string, *themeProperties] `yaml:"presets"`
 	} `yaml:"theme"`
 
 	Branding struct {

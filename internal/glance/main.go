@@ -124,6 +124,7 @@ func serveApp(configPath string) error {
 
 			return
 		}
+		app.configPath = configPath
 
 		if !hadValidConfigOnStartup {
 			hadValidConfigOnStartup = true
@@ -169,6 +170,7 @@ func serveApp(configPath string) error {
 		if err != nil {
 			return fmt.Errorf("creating application: %w", err)
 		}
+		app.configPath = configPath
 
 		startServer, _ := app.server()
 		if err := startServer(); err != nil {

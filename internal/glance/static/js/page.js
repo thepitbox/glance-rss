@@ -744,6 +744,39 @@ function initThemePicker() {
     })
 }
 
+function countFailedWidgets(html) {
+    return (html.match(/widget-error-header|notice-icon/g) || []).length;
+}
+
+// The server keeps retrying failed widgets in the background, so if the page loaded
+// with errors (e.g. right after startup) periodically check whether more content has
+// become available and reload once it has
+function setupFailedWidgetsRecovery(pageContent) {
+    let failedCount = countFailedWidgets(pageContent);
+    if (failedCount == 0) return;
+
+    const delays = [15, 30, 60, 120, 240, 480];
+    let attempt = 0;
+
+    const check = async () => {
+        try {
+            const newContent = await fetchPageContent(pageData);
+            const newFailedCount = countFailedWidgets(newContent);
+
+            if (newFailedCount < failedCount) {
+                location.reload();
+                return;
+            }
+        } catch (e) {}
+
+        if (++attempt < delays.length) {
+            setTimeout(check, delays[attempt] * 1000);
+        }
+    };
+
+    setTimeout(check, delays[0] * 1000);
+}
+
 async function setupPage() {
     initThemePicker();
 
@@ -781,6 +814,8 @@ async function setupPage() {
         setTimeout(() => {
             document.body.classList.add("page-columns-transitioned");
         }, 300);
+
+        setupFailedWidgetsRecovery(pageContent);
     }
 }
 

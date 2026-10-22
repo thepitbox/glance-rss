@@ -1,3 +1,60 @@
+/* 16:9 landscape, capped relative to the row so that headlines keep most of the width in narrow columns */
+.rss-list-thumbnail {
+    width: min(var(--rss-list-thumbnail-width, 14rem), 35%);
+    aspect-ratio: 16 / 9;
+    align-self: flex-start;
+    margin-top: 0.2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.rss-list-thumbnail > img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.rss-list-thumbnail-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 40%, var(--color-widget-background)),
+        var(--color-widget-background-highlight) 75%
+    );
+    color: var(--color-primary);
+    font-size: var(--font-size-h6);
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.rss-list-thumbnail:has(> img.loaded, > img.cached) > .rss-list-thumbnail-placeholder {
+    visibility: hidden;
+}
+
+.rss-list-thumbnail-placeholder > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+/* always show at full color rather than faded until hovered */
+.rss-list-thumbnail > .thumbnail {
+    opacity: 1;
+    filter: none;
+}
+
 .rss-card-image {
     height: var(--rss-thumbnail-height, 10rem);
     object-fit: cover;

@@ -38,6 +38,7 @@ type rssWidget struct {
 	CollapseAfter    int              `yaml:"collapse-after"`
 	SingleLineTitles bool             `yaml:"single-line-titles"`
 	PreserveOrder    bool             `yaml:"preserve-order"`
+	HideThumbnails   bool             `yaml:"hide-thumbnails"`
 
 	Items          rssFeedItemList `yaml:"-"`
 	NoItemsMessage string          `yaml:"-"`
@@ -126,6 +127,8 @@ type rssFeedItem struct {
 	Categories  []string
 	Description string
 	PublishedAt time.Time
+	// set when ImageURL is the image of the whole feed (usually the site logo) rather than of the item
+	IsFeedImage bool
 }
 
 type rssFeedRequest struct {
@@ -314,7 +317,10 @@ func (widget *rssWidget) fetchItemsFromFeedTask(request rssFeedRequest) ([]rssFe
 			rssItem.ImageURL = item.Image.URL
 		} else if url := findThumbnailInItemExtensions(item); url != "" {
 			rssItem.ImageURL = url
+		} else if url := findFirstImageInHTML(item.Content, item.Description); url != "" {
+			rssItem.ImageURL = url
 		} else if feed.Image != nil {
+			rssItem.IsFeedImage = true
 			if len(feed.Image.URL) > 0 && feed.Image.URL[0] == '/' {
 				rssItem.ImageURL = strings.TrimRight(feed.Link, "/") + feed.Image.URL
 			} else {
@@ -392,7 +398,27 @@ func recursiveFindThumbnailInExtensions(extensions map[string][]gofeedext.Extens
 	return ""
 }
 
-var htmlTagsWithAttributesPattern = regexp.MustCompile(`<\/?[a-zA-Z0-9-]+ *(?:[a-zA-Z-]+=(?:"|').*?(?:"|') ?)* *\/?>`)
+var htmlImageSourcePattern = regexp.MustCompile(`(?i)<img\s[^>]*?src\s*=\s*["']([^"']+)["']`)
+
+// Many feeds (e.g. The Verge, TechCrunch) don't provide a dedicated image for their items
+// and instead embed it in the item's content, use the first such image as the thumbnail
+func findFirstImageInHTML(sources ...string) string {
+	for _, source := range sources {
+		matches := htmlImageSourcePattern.FindStringSubmatch(source)
+		if len(matches) != 2 {
+			continue
+		}
+
+		src := html.UnescapeString(matches[1])
+		if strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "http://") {
+			return src
+		}
+	}
+
+	return ""
+}
+
+var htmlTagsWithAttributesPattern =regexp.MustCompile(`<\/?[a-zA-Z0-9-]+ *(?:[a-zA-Z-]+=(?:"|').*?(?:"|') ?)* *\/?>`)
 
 func sanitizeFeedDescription(description string) string {
 	if description == "" {

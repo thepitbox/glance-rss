@@ -350,11 +350,13 @@ func (w *widgetBase) scheduleNextUpdate() *widgetBase {
 func (w *widgetBase) scheduleEarlyUpdate() *widgetBase {
 	w.updateRetriedTimes++
 
-	if w.updateRetriedTimes > 5 {
-		w.updateRetriedTimes = 5
+	if w.updateRetriedTimes > 7 {
+		w.updateRetriedTimes = 7
 	}
 
-	nextEarlyUpdate := time.Now().Add(time.Duration(math.Pow(float64(w.updateRetriedTimes), 2)) * time.Minute)
+	// 15s, 30s, 1m, 2m, 4m, 8m, 16m - short at first so that failures caused by the
+	// network not being ready on startup get resolved quickly
+	nextEarlyUpdate := time.Now().Add(time.Duration(math.Pow(2, float64(w.updateRetriedTimes-1))) * 15 * time.Second)
 	nextUsualUpdate := w.getNextUpdateTime()
 
 	if nextEarlyUpdate.After(nextUsualUpdate) {

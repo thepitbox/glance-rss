@@ -1,0 +1,34 @@
+{{- template "document.html" . }}
+
+{{- define "document-title" }}Manage feeds{{ end }}
+
+{{- define "document-head-after" }}
+<link rel="stylesheet" href='{{ .App.StaticAssetPath "css/feeds-editor.css" }}'>
+<script type="module" src='{{ .App.StaticAssetPath "js/feeds-editor.js" }}'></script>
+{{- end }}
+
+{{- define "document-body" }}
+<div class="flex flex-column body-content">
+    <main class="content-bounds grow feeds-editor">
+        <div class="feeds-editor-header flex items-center justify-between gap-15 flex-wrap">
+            <div>
+                <h1 class="size-h2 color-highlight">Manage feeds</h1>
+                <p class="color-subdue margin-top-5">Add, rename, reorder and delete RSS tabs and their feeds.</p>
+            </div>
+            <a class="feeds-editor-button" href="{{ .App.Config.Server.BaseURL }}/">← Back to dashboard</a>
+        </div>
+
+        <div id="feeds-editor-message" class="feeds-editor-message" role="status" aria-live="polite"></div>
+
+        <div id="feeds-editor-sections" class="feeds-editor-sections"></div>
+
+        <div class="feeds-editor-actions flex gap-10 flex-wrap">
+            <button type="button" class="feeds-editor-button" id="feeds-editor-add-section">+ Add tab</button>
+            <button type="button" class="feeds-editor-button" id="feeds-editor-import" title="Import an OPML export from another feed reader, or a text file with one feed URL per line">Import file (OPML / TXT)</button>
+            <input type="file" id="feeds-editor-import-input" accept=".opml,.xml,.txt,text/xml,application/xml,text/x-opml,text/plain" hidden>
+            <button type="button" class="feeds-editor-button feeds-editor-button-primary" id="feeds-editor-save" disabled>Save changes</button>
+        </div>
+    </main>
+    {{ template "footer.html" . }}
+</div>
+{{- end }}

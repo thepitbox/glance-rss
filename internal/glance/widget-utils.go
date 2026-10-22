@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"strconv"
 	"sync"
@@ -21,22 +22,82 @@ var (
 	errPartialContent = errors.New("failed to retrieve some of the content")
 )
 
-const defaultClientTimeout = 5 * time.Second
+// Covers all retry attempts of a request, individual attempts are bound by the transport timeouts
+const defaultClientTimeout = 30 * time.Second
 
 var defaultHTTPClient = &http.Client{
-	Transport: &http.Transport{
-		MaxIdleConnsPerHost: 10,
-		Proxy:               http.ProxyFromEnvironment,
+	Transport: &retryingTransport{
+		base: &http.Transport{
+			MaxIdleConnsPerHost:   10,
+			Proxy:                 http.ProxyFromEnvironment,
+			DialContext:           (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+		},
 	},
 	Timeout: defaultClientTimeout,
 }
 
 var defaultInsecureHTTPClient = &http.Client{
 	Timeout: defaultClientTimeout,
-	Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		Proxy:           http.ProxyFromEnvironment,
+	Transport: &retryingTransport{
+		base: &http.Transport{
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+			Proxy:                 http.ProxyFromEnvironment,
+			DialContext:           (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+		},
 	},
+}
+
+// retryingTransport retries body-less GET/HEAD requests that fail due to transient
+// issues such as the network or DNS not being ready yet right after the host boots
+type retryingTransport struct {
+	base http.RoundTripper
+}
+
+var retryBackoffs = []time.Duration{1 * time.Second, 3 * time.Second}
+
+func (t *retryingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	retryable := (request.Method == http.MethodGet || request.Method == http.MethodHead) &&
+		(request.Body == nil || request.Body == http.NoBody)
+
+	response, err := t.base.RoundTrip(request)
+
+	for _, backoff := range retryBackoffs {
+		if !retryable || !isTransientFailure(response, err) {
+			break
+		}
+
+		if response != nil {
+			io.Copy(io.Discard, io.LimitReader(response.Body, 64*1024))
+			response.Body.Close()
+		}
+
+		select {
+		case <-request.Context().Done():
+			return nil, request.Context().Err()
+		case <-time.After(backoff):
+		}
+
+		response, err = t.base.RoundTrip(request)
+	}
+
+	return response, err
+}
+
+func isTransientFailure(response *http.Response, err error) bool {
+	if err != nil {
+		return !errors.Is(err, context.Canceled)
+	}
+
+	switch response.StatusCode {
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	}
+
+	return false
 }
 
 type requestDoer interface {

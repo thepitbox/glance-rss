@@ -4,10 +4,17 @@ Wants=network-online.target
 After=network-online.target
 
 [Container]
-Image=docker.io/glanceapp/glance:latest
+# Built locally from this repo, the upstream image doesn't include our changes:
+#   sudo podman build -t localhost/glance:latest .
+Image=localhost/glance:latest
 ContainerName=glance
 PublishPort=8002:8080
+# Must stay writable, the feeds editor (/feeds) saves changes to glance.yml in here
 Volume=/etc/thepitbox/glance/config:/app/config
+Environment=TZ=Europe/Berlin
+HealthCmd=wget -q --spider http://localhost:8080/api/healthz
+HealthInterval=1m
+HealthStartPeriod=30s
 
 [Service]
 Restart=always

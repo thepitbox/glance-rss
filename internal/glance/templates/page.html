@@ -10,6 +10,7 @@
 {{ range .App.Config.Pages }}
 <a href="{{ $.App.Config.Server.BaseURL }}/{{ .Slug }}" class="nav-item{{ if eq .Slug $.Page.Slug }} nav-item-current{{ end }}"{{ if eq .Slug $.Page.Slug }} aria-current="page"{{ end }}><div class="nav-item-text">{{ .Title }}</div></a>
 {{ end }}
+<a href="{{ $.App.Config.Server.BaseURL }}/feeds" class="nav-item"><div class="nav-item-text">Manage feeds</div></a>
 {{ end }}
 
 {{ define "document-body" }}

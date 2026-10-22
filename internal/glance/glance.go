@@ -25,12 +25,15 @@ var (
 
 const STATIC_ASSETS_CACHE_DURATION = 24 * time.Hour
 
-var reservedPageSlugs = []string{"login", "logout"}
+var reservedPageSlugs = []string{"login", "logout", "feeds"}
 
 type application struct {
 	Version   string
 	CreatedAt time.Time
 	Config    config
+
+	// path to the main config file, used by the feeds editor to save changes
+	configPath string
 
 	parsedManifest []byte
 
@@ -106,7 +109,7 @@ func newApplication(c *config) (*application, error) {
 		themeProps := make([]*themeProperties, 0, 2)
 
 		defaultDarkTheme, ok := config.Theme.Presets.Get("default-dark")
-		if ok && !config.Theme.SameAs(defaultDarkTheme) || !config.Theme.SameAs(&themeProperties{}) {
+		if !config.Theme.HideDefaultDark && (ok && !config.Theme.SameAs(defaultDarkTheme) || !config.Theme.SameAs(&themeProperties{})) {
 			themeKeys = append(themeKeys, "default-dark")
 			themeProps = append(themeProps, &themeProperties{})
 		}
@@ -267,6 +270,42 @@ func (p *page) updateOutdatedWidgets() {
 	}
 
 	wg.Wait()
+}
+
+const backgroundRefreshInterval = 15 * time.Second
+
+// Keeps widgets updated without waiting for a page request so that content is
+// already available on first load and widgets that failed (e.g. because the network
+// wasn't ready yet on startup) recover on their own as soon as their retry is due
+func (a *application) refreshWidgetsInBackground(stop <-chan struct{}) {
+	refresh := func() {
+		for p := range a.Config.Pages {
+			page := &a.Config.Pages[p]
+			page.mu.Lock()
+			page.updateOutdatedWidgets()
+			page.mu.Unlock()
+
+			select {
+			case <-stop:
+				return
+			default:
+			}
+		}
+	}
+
+	refresh()
+
+	ticker := time.NewTicker(backgroundRefreshInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			refresh()
+		}
+	}
 }
 
 func (a *application) resolveUserDefinedAssetPath(path string) string {
@@ -450,6 +489,10 @@ func (a *application) server() (func() error, func() error) {
 
 	mux.HandleFunc("GET /api/pages/{page}/content/{$}", a.handlePageContentRequest)
 
+	mux.HandleFunc("GET /feeds", a.handleFeedsEditorPageRequest)
+	mux.HandleFunc("GET /api/feed-sections", a.handleGetFeedSectionsRequest)
+	mux.HandleFunc("PUT /api/feed-sections", a.handleSaveFeedSectionsRequest)
+
 	if !a.Config.Theme.DisablePicker {
 		mux.HandleFunc("POST /api/set-theme/{key}", a.handleThemeChangeRequest)
 	}
@@ -504,6 +547,9 @@ func (a *application) server() (func() error, func() error) {
 		ReadTimeout:       10 * time.Second,
 	}
 
+	stopRefreshing := make(chan struct{})
+	var stopRefreshingOnce sync.Once
+
 	start := func() error {
 		log.Printf("Starting server on %s:%d (base-url: \"%s\", assets-path: \"%s\")\n",
 			a.Config.Server.Host,
@@ -511,6 +557,8 @@ func (a *application) server() (func() error, func() error) {
 			a.Config.Server.BaseURL,
 			absAssetsPath,
 		)
+
+		go a.refreshWidgetsInBackground(stopRefreshing)
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			return err
@@ -520,6 +568,7 @@ func (a *application) server() (func() error, func() error) {
 	}
 
 	stop := func() error {
+		stopRefreshingOnce.Do(func() { close(stopRefreshing) })
 		return server.Close()
 	}
 
